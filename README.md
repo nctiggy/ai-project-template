@@ -172,6 +172,32 @@ deliberate and does not compromise portability: `AGENTS.md` stays the
 tool-agnostic contract that Copilot, Cursor, and Codex read. Re-run `specify init`
 with a different `--integration` to add another agent alongside it.
 
+## Status line (opt-in)
+
+`.claude/statusline.sh` ships with the template but is **not enabled by default** —
+a status line is a personal preference, and forcing one through the shared
+`.claude/settings.json` would override whatever every collaborator already has.
+
+Turn it on for yourself, in your own user settings:
+
+```bash
+cp .claude/statusline.sh ~/.claude/statusline.sh && chmod +x ~/.claude/statusline.sh
+```
+
+then add to `~/.claude/settings.json`:
+
+```json
+{
+  "statusLine": { "type": "command", "command": "~/.claude/statusline.sh", "padding": 1 }
+}
+```
+
+Shows model (+ effort), directory, branch/worktree, a colour-coded context bar
+(green → yellow at 60% → red at 85%), 5-hour rate-limit burn, and open-PR review
+state. Cost only appears above $0.50, so it stays quiet on a subscription.
+
+Requires `jq`. Degrades to `?` rather than erroring if fields are absent.
+
 ## Design notes
 
 **Why `AGENTS.md` and not `CLAUDE.md`?** `AGENTS.md` is tool-agnostic — Copilot,
