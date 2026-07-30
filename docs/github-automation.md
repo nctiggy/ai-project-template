@@ -30,8 +30,20 @@ Repository → **Settings → Secrets and variables → Actions**.
 
 | Secret | Needed by | Notes |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | `claude-issue.yml` | From console.anthropic.com. Only secret this template requires. |
+| `CLAUDE_CODE_OAUTH_TOKEN` | `claude-issue.yml` | **Default.** Subscription auth (Pro/Max) — no API billing. Generate with `claude setup-token`. |
+| `ANTHROPIC_API_KEY` | `claude-issue.yml` *(alternative)* | Pay-as-you-go API billing. Only if you swap the input in the workflow. |
 | `GITHUB_TOKEN` | all workflows | **Injected automatically.** Never create this yourself. |
+
+### Subscription auth (recommended)
+
+```bash
+claude setup-token          # interactive; prints a long-lived token
+gh secret set CLAUDE_CODE_OAUTH_TOKEN --body '<paste>'
+```
+
+The token is tied to your Claude subscription, so runner activity draws on the
+subscription rather than metered API credits. It is long-lived but not eternal —
+if the automation starts failing auth, regenerate and re-set the secret.
 
 Using Bedrock / Vertex / Foundry instead of the Anthropic API? Swap
 `anthropic_api_key` for `use_bedrock` / `use_vertex` / `use_foundry` plus OIDC —
