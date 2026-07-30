@@ -1,0 +1,126 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Guardrails run on day one, before the project has picked a stack. They verify
+  # the template's own contract: the hooks work, the context files exist, the
+  # config parses. This job must stay green in a fresh clone.
+  # ---------------------------------------------------------------------------
+  guardrails:
+    name: Template guardrails
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Required context files exist
+        run: |
+          set -e
+          for f in AGENTS.md CLAUDE.md README.md \
+                   docs/design-system.md docs/components.md \
+                   docs/auth-and-sessions.md docs/security.md docs/fixes-log.md \
+                   ralph/PROMPT.md ralph/IMPLEMENTATION_PLAN.md ralph/PROGRESS.md ralph/loop.sh \
+                   .claude/settings.json .specify/memory/constitution.md; do
+            [ -f "$f" ] || { echo "::error::missing required file: $f"; exit 1; }
+          done
+          echo "All required files present."
+
+      - name: AGENTS.md stays skimmable (<150 lines)
+        run: |
+          lines=$(wc -l < AGENTS.md)
+          echo "AGENTS.md is $lines lines"
+          if [ "$lines" -ge 150 ]; then
+            echo "::error::AGENTS.md is $lines lines (limit 150). Move detail into docs/ and link it."
+            exit 1
+          fi
+
+      - name: Hooks are executable
+        run: |
+          set -e
+          for h in .claude/hooks/*.sh ralph/loop.sh; do
+            [ -x "$h" ] || { echo "::error::$h is not executable (chmod +x)"; exit 1; }
+          done
+          echo "All hooks executable."
+
+      - name: Shell syntax
+        run: |
+          set -e
+          for f in .claude/hooks/*.sh ralph/loop.sh; do
+            sh -n "$f" 2>/dev/null || bash -n "$f"
+          done
+          echo "Shell syntax OK."
+
+      - name: shellcheck
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          shellcheck -S warning .claude/hooks/*.sh ralph/loop.sh
+
+      - name: Hook behaviour tests
+        run: ./.claude/hooks/test-hooks.sh
+
+      - name: JSON / YAML parse
+        run: |
+          set -e
+          python3 -c "import json;json.load(open('.claude/settings.json'))"
+          python3 - <<'PY'
+          import sys, pathlib
+          try:
+              import yaml
+          except ImportError:
+              sys.exit(0)  # yaml not present; workflow linting covers this anyway
+          for p in pathlib.Path('.github/workflows').glob('*.yml'):
+              yaml.safe_load(p.read_text())
+              print(f"ok {p}")
+          PY
+
+      - name: No secrets committed
+        run: |
+          if git ls-files | grep -E '(^|/)\.env$|\.pem$|\.key$|^secrets\.json$'; then
+            echo "::error::secret-like file is tracked in git"
+            exit 1
+          fi
+          echo "No secret-like files tracked."
+
+  # ---------------------------------------------------------------------------
+  # Project checks. These are the commands from AGENTS.md — keep the two in sync.
+  # Skipped until a stack is chosen, so a fresh template is green rather than red.
+  # Delete the `if:` guard once you fill these in.
+  # ---------------------------------------------------------------------------
+  project:
+    name: Build / test / lint
+    runs-on: ubuntu-latest
+    needs: guardrails
+    if: ${{ hashFiles('package.json', 'pyproject.toml', 'go.mod', 'Cargo.toml') != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # <FILL IN> language setup, e.g.:
+      # - uses: actions/setup-node@v4
+      #   with: { node-version: '22', cache: 'npm' }
+
+      - name: Install
+        run: 'echo "<FILL IN: npm ci>"'
+
+      - name: Lint
+        run: 'echo "<FILL IN: npm run lint>"'
+
+      - name: Typecheck
+        run: 'echo "<FILL IN: npm run typecheck>"'
+
+      - name: Test
+        run: 'echo "<FILL IN: npm test>"'
+
+      - name: Build
+        run: 'echo "<FILL IN: npm run build>"'
