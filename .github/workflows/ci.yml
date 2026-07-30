@@ -32,7 +32,8 @@ jobs:
                    docs/design-system.md docs/components.md \
                    docs/auth-and-sessions.md docs/security.md docs/fixes-log.md \
                    ralph/PROMPT.md ralph/IMPLEMENTATION_PLAN.md ralph/PROGRESS.md ralph/loop.sh \
-                   .claude/settings.json .specify/memory/constitution.md; do
+                   .claude/settings.json .specify/memory/constitution.md \
+                   plugin/.claude-plugin/plugin.json plugin/skills/start-project/SKILL.md; do
             [ -f "$f" ] || { echo "::error::missing required file: $f"; exit 1; }
           done
           echo "All required files present."
@@ -66,6 +67,11 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
           shellcheck -S warning .claude/hooks/*.sh ralph/loop.sh
+          # The skill's bundled scripts ship to users; lint them too. Guarded
+          # because plugin/ is removed from generated projects.
+          if [ -d plugin/skills/start-project/scripts ]; then
+            shellcheck -S warning plugin/skills/start-project/scripts/*.sh
+          fi
 
       - name: Hook behaviour tests
         run: ./.claude/hooks/test-hooks.sh

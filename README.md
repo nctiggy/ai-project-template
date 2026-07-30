@@ -65,18 +65,41 @@ ralph/
 
 ## Start a new project
 
+### The easy way — the `start-project` skill
+
+One command, no clone. Claude does the whole bootstrap: creates the repo, fills
+every placeholder, prunes docs that do not apply, enables the guardrails and the
+free GitHub security features, optionally wires a design system, and hands back a
+repo that is ready for specs and Ralph loops.
+
+```bash
+claude --plugin-url https://github.com/nctiggy/ai-project-template/releases/latest/download/start-project.zip
+```
+
+then in the session:
+
+```
+/start-project:start-project
+```
+
+It reads what you already told it and asks only about genuine gaps — typically
+visibility, whether there is a UI, and whether there is auth. Everything else
+(build/test/lint commands, CI setup, CodeQL language, Dependabot ecosystem) is
+derived from the stack.
+
+Source lives in [`plugin/`](plugin/); it is removed from generated projects.
+
+### The manual way
+
 ```bash
 gh repo create my-project --public --template nctiggy/ai-project-template --clone
 cd my-project
+rm -rf plugin/                          # template tooling, not project content
 
-# 1. Fill in every <FILL IN> marker — start with AGENTS.md
-grep -rn "<FILL IN" --exclude-dir=.git .
-
-# 2. Make the guardrails runnable
+grep -rn "<FILL IN" --exclude-dir=.git . # fill every marker, AGENTS.md first
 chmod +x .claude/hooks/*.sh ralph/loop.sh
-./.claude/hooks/test-hooks.sh          # should be 28/28
+./.claude/hooks/test-hooks.sh            # should be 28/28
 
-# 3. Set the project's principles
 claude
 > /speckit-constitution
 ```
